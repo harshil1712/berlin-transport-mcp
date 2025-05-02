@@ -1,6 +1,56 @@
-# Building a Remote MCP Server on Cloudflare (Without Auth)
+# Berlin Transport MCP Server
 
-This example allows you to deploy a remote MCP server that doesn't require authentication on Cloudflare Workers. 
+An MCP server that provides access to Berlin's public transport data through the VBB (Verkehrsverbund Berlin-Brandenburg) API. This server wraps the [v6.vbb.transport.rest](https://v6.vbb.transport.rest/) API.
+
+## Available Tools
+
+### 1. search_stops
+Search for public transport stops in Berlin-Brandenburg.
+
+**Parameters:**
+- `query` (string): Search query for stops
+
+### 2. get_departures
+Get upcoming departures for a specific stop.
+
+**Parameters:**
+- `stop_id` (string): Stop ID to get departures for
+- `results` (number, optional): Number of results to return
+
+### 3. get_journeys
+Get journey options from one stop to another.
+
+**Parameters:**
+- `from` (string): Origin stop ID
+- `to` (string): Destination stop ID
+- `departure` (string, optional): Departure time (e.g. "tomorrow 2pm")
+- `results` (number, optional): Number of results to return
+
+## Example Usage
+
+```typescript
+// Search for stops
+const stops = await mcp.call("search_stops", {
+  query: "alexanderplatz"
+});
+
+// Get departures
+const departures = await mcp.call("get_departures", {
+  stop_id: "900100003",
+  results: 5
+});
+
+// Get journeys
+const journeys = await mcp.call("get_journeys", {
+  from: "900100003",  // Alexanderplatz
+  to: "900100001",    // Friedrichstraße
+  departure: "tomorrow 2pm",
+  results: 3
+});
+```
+
+## API Documentation
+For more details about the underlying API, visit [v6.vbb.transport.rest/getting-started.html](https://v6.vbb.transport.rest/getting-started.html).
 
 ## Get started: 
 
@@ -15,7 +65,7 @@ npm create cloudflare@latest -- my-mcp-server --template=cloudflare/ai/demos/rem
 
 ## Customizing your MCP Server
 
-To add your own [tools](https://developers.cloudflare.com/agents/model-context-protocol/tools/) to the MCP server, define each tool inside the `init()` method of `src/index.ts` using `this.server.tool(...)`. 
+To add your own [tools](https://developers.cloudflare.com/agents/model-context-protocol/tools/) to the MCP server, define each tool inside the `init()` method of `src/index.ts` using `this.server.tool(...)`.
 
 ## Connect to Cloudflare AI Playground
 
@@ -47,4 +97,4 @@ Update with this configuration:
 }
 ```
 
-Restart Claude and you should see the tools become available. 
+Restart Claude and you should see the tools become available.

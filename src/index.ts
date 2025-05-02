@@ -2,57 +2,76 @@ import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
+const VBB_API_BASE = 'https://v6.vbb.transport.rest';
+
 // Define our MCP agent with tools
-export class MyMCP extends McpAgent {
+export class BerlinTransportMCP extends McpAgent {
 	server = new McpServer({
-		name: "Authless Calculator",
+		name: "Berlin Transport API",
 		version: "1.0.0",
 	});
 
 	async init() {
-		// Simple addition tool
+		// Search for stops
 		this.server.tool(
-			"add",
-			{ a: z.number(), b: z.number() },
-			async ({ a, b }) => ({
-				content: [{ type: "text", text: String(a + b) }],
-			})
+			"search_stops",
+			{
+				query: z.string().describe('Search query for stops'),
+			},
+			async ({ query }) => {
+				const url = new URL('/locations', VBB_API_BASE);
+				url.searchParams.set('query', query);
+				url.searchParams.set('poi', 'false');
+				url.searchParams.set('addresses', 'false');
+
+				const response = await fetch(url);
+				const data = await response.json();
+				return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+			}
 		);
 
-		// Calculator tool with multiple operations
+		// Get departures for a stop
 		this.server.tool(
-			"calculate",
+			"get_departures",
 			{
-				operation: z.enum(["add", "subtract", "multiply", "divide"]),
-				a: z.number(),
-				b: z.number(),
+				stop_id: z.string().describe('Stop ID to get departures for'),
+				results: z.number().optional().describe('Number of results to return'),
 			},
-			async ({ operation, a, b }) => {
-				let result: number;
-				switch (operation) {
-					case "add":
-						result = a + b;
-						break;
-					case "subtract":
-						result = a - b;
-						break;
-					case "multiply":
-						result = a * b;
-						break;
-					case "divide":
-						if (b === 0)
-							return {
-								content: [
-									{
-										type: "text",
-										text: "Error: Cannot divide by zero",
-									},
-								],
-							};
-						result = a / b;
-						break;
+			async ({ stop_id, results }) => {
+				const url = new URL(`/stops/${stop_id}/departures`, VBB_API_BASE);
+				if (results) {
+					url.searchParams.set('results', String(results));
 				}
-				return { content: [{ type: "text", text: String(result) }] };
+
+				const response = await fetch(url);
+				const data = await response.json();
+				return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+			}
+		);
+
+		// Get journeys from A to B
+		this.server.tool(
+			"get_journeys",
+			{
+				from: z.string().describe('Origin stop ID'),
+				to: z.string().describe('Destination stop ID'),
+				departure: z.string().optional().describe('Departure time (e.g. tomorrow 2pm)'),
+				results: z.number().optional().describe('Number of results to return'),
+			},
+			async ({ from, to, departure, results }) => {
+				const url = new URL('/journeys', VBB_API_BASE);
+				url.searchParams.set('from', from);
+				url.searchParams.set('to', to);
+				if (departure) {
+					url.searchParams.set('departure', departure);
+				}
+				if (results) {
+					url.searchParams.set('results', String(results));
+				}
+
+				const response = await fetch(url);
+				const data = await response.json();
+				return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
 			}
 		);
 	}
